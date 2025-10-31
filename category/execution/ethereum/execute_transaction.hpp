@@ -56,11 +56,16 @@ protected:
     Address const &sender_;
     std::span<std::optional<Address> const> const authorities_;
     BlockHeader const &header_;
+    vm::runtime::OpcodeTracerBase* opcode_tracer_ = nullptr;
 
 public:
     ExecuteTransactionNoValidation(
         Chain const &, Transaction const &, Address const &,
         std::span<std::optional<Address> const>, BlockHeader const &);
+
+    void set_opcode_tracer(vm::runtime::OpcodeTracerBase* tracer) {
+        opcode_tracer_ = tracer;
+    }
 
     evmc::Result operator()(State &, EvmcHost<traits> &);
 };
@@ -73,6 +78,7 @@ class ExecuteTransaction : public ExecuteTransactionNoValidation<traits>
     using ExecuteTransactionNoValidation<traits>::sender_;
     using ExecuteTransactionNoValidation<traits>::authorities_;
     using ExecuteTransactionNoValidation<traits>::header_;
+    using ExecuteTransactionNoValidation<traits>::opcode_tracer_;
 
     uint64_t i_;
     ChainContext<traits> const &chain_ctx_;
