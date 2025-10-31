@@ -115,6 +115,7 @@ namespace monad::vm::runtime
             .result = {},
             .memory =
                 Memory(msg->memory_handle, msg->memory, msg->memory_capacity),
+            .opcode_tracer = nullptr,
         };
     }
 
@@ -144,6 +145,7 @@ namespace monad::vm::runtime
                 },
             .result = {},
             .memory = Memory(memory_handle, memory_handle, memory_capacity),
+            .opcode_tracer = nullptr,
         };
     }
 

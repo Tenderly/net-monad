@@ -360,7 +360,8 @@ Result<evmc::Result> ExecuteTransaction<traits>::execute_impl2(State &state)
         header_.base_fee_per_gas,
         i_,
         chain_ctx_,
-        trace_transfers_};
+        trace_transfers_,
+        opcode_tracer_};
 
     return ExecuteTransactionNoValidation<traits>::operator()(state, host);
 }

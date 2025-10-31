@@ -53,7 +53,7 @@
                                                                                \
         ++instr_ptr;                                                           \
         if constexpr (debug_enabled) {                                         \
-            trace(analysis, gas_remaining, instr_ptr);                         \
+            trace<traits>(ctx, analysis, gas_remaining, instr_ptr, stack_bottom, stack_top + delta); \
         }                                                                      \
         MONAD_VM_MUST_TAIL return instruction_table<traits>[*instr_ptr](       \
             ctx,                                                               \
@@ -73,7 +73,7 @@
                                                                                \
         instr_ptr += (((OP) - PUSH0) + 1);                                     \
         if constexpr (debug_enabled) {                                         \
-            trace(analysis, gas_remaining, instr_ptr);                         \
+            trace<traits>(ctx, analysis, gas_remaining, instr_ptr, stack_bottom, stack_top + delta); \
         }                                                                      \
         MONAD_VM_MUST_TAIL return instruction_table<traits>[*instr_ptr](       \
             ctx,                                                               \
@@ -1520,7 +1520,7 @@ namespace monad::vm::interpreter
         auto const *const new_ip = jump_impl(ctx, analysis, target);
 
         if constexpr (debug_enabled) {
-            trace(analysis, gas_remaining, new_ip);
+            trace<traits>(ctx, analysis, gas_remaining, new_ip, stack_bottom, stack_top);
         }
         MONAD_VM_MUST_TAIL return instruction_table<traits>[*new_ip](
             ctx, analysis, stack_bottom, stack_top, gas_remaining, new_ip);
@@ -1540,7 +1540,7 @@ namespace monad::vm::interpreter
         if (cond) {
             auto const *const new_ip = jump_impl(ctx, analysis, target);
             if constexpr (debug_enabled) {
-                trace(analysis, gas_remaining, new_ip);
+                trace<traits>(ctx, analysis, gas_remaining, new_ip, stack_bottom, stack_top);
             }
             MONAD_VM_MUST_TAIL return instruction_table<traits>[*new_ip](
                 ctx, analysis, stack_bottom, stack_top, gas_remaining, new_ip);
@@ -1548,7 +1548,7 @@ namespace monad::vm::interpreter
         else {
             ++instr_ptr;
             if constexpr (debug_enabled) {
-                trace(analysis, gas_remaining, instr_ptr);
+                trace<traits>(ctx, analysis, gas_remaining, instr_ptr, stack_bottom, stack_top);
             }
             MONAD_VM_MUST_TAIL return instruction_table<traits>[*instr_ptr](
                 ctx,
