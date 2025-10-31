@@ -53,6 +53,9 @@ namespace monad::vm
         auto rt_ctx =
             runtime::Context::from(host_itf, host_ctx, msg, icode->code_span());
 
+        // Set opcode tracer from host if available
+        rt_ctx.opcode_tracer = host.get_opcode_tracer();
+
         // Install new runtime context:
         auto *const prev_rt_ctx = host.set_runtime_context(&rt_ctx);
 
@@ -78,6 +81,9 @@ namespace monad::vm
         auto *const host_ctx = host.to_context();
         auto rt_ctx = runtime::Context::from(host_itf, host_ctx, msg, code);
 
+        // Set opcode tracer from host if available
+        rt_ctx.opcode_tracer = host.get_opcode_tracer();
+
         // Install new runtime context:
         auto *const prev_rt_ctx = host.set_runtime_context(&rt_ctx);
 
@@ -101,6 +107,12 @@ namespace monad::vm
         SharedVarcode const &vcode)
     {
         auto const &icode = vcode->intercode();
+
+        /* We can only trace opcodes if we are using the interpreter */
+        if (MONAD_VM_UNLIKELY(rt_ctx.opcode_tracer != nullptr)) {
+            return execute_bytecode_raw<traits>(rt_ctx, icode->code_span());
+        }
+
         auto const &ncode = vcode->nativecode();
         auto const msg_gas = rt_ctx.gas_remaining;
         if (MONAD_VM_LIKELY(ncode != nullptr)) {

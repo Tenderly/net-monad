@@ -53,11 +53,16 @@ protected:
     evmc_tx_context const &tx_context_;
     State &state_;
     CallTracerBase &call_tracer_;
+    vm::runtime::OpcodeTracerBase* opcode_tracer_;
 
 public:
     EvmcHostBase(
         CallTracerBase &, evmc_tx_context const &, BlockHashBuffer const &,
-        State &) noexcept;
+        State &, vm::runtime::OpcodeTracerBase* opcode_tracer = nullptr) noexcept;
+
+    virtual vm::runtime::OpcodeTracerBase* get_opcode_tracer() const noexcept override {
+        return opcode_tracer_;
+    }
 
     virtual ~EvmcHostBase() noexcept = default;
 
@@ -98,7 +103,7 @@ public:
         bytes32_t const &value) noexcept override;
 };
 
-static_assert(sizeof(EvmcHostBase) == 56);
+static_assert(sizeof(EvmcHostBase) == 64);
 static_assert(alignof(EvmcHostBase) == 8);
 
 template <Traits traits>
@@ -113,8 +118,9 @@ struct EvmcHost final : public EvmcHostBase
         CallTracerBase &call_tracer, evmc_tx_context const &tx_context,
         BlockHashBuffer const &block_hash_buffer, State &state,
         Transaction const &tx, std::optional<uint256_t> base_fee_per_gas,
-        uint64_t i, ChainContext<traits> const &chain_ctx) noexcept
-        : EvmcHostBase{call_tracer, tx_context, block_hash_buffer, state}
+        uint64_t i, ChainContext<traits> const &chain_ctx,
+        vm::runtime::OpcodeTracerBase* opcode_tracer = nullptr) noexcept
+        : EvmcHostBase{call_tracer, tx_context, block_hash_buffer, state, opcode_tracer}
         , tx_{tx}
         , base_fee_per_gas_{base_fee_per_gas}
         , i_{i}
@@ -199,10 +205,10 @@ struct EvmcHost final : public EvmcHostBase
     }
 };
 
-static_assert(sizeof(EvmcHost<EvmTraits<EVMC_LATEST_STABLE_REVISION>>) == 120);
+static_assert(sizeof(EvmcHost<EvmTraits<EVMC_LATEST_STABLE_REVISION>>) == 128);
 static_assert(alignof(EvmcHost<EvmTraits<EVMC_LATEST_STABLE_REVISION>>) == 8);
 
-static_assert(sizeof(EvmcHost<MonadTraits<MONAD_NEXT>>) == 120);
+static_assert(sizeof(EvmcHost<MonadTraits<MONAD_NEXT>>) == 128);
 static_assert(alignof(EvmcHost<MonadTraits<MONAD_NEXT>>) == 8);
 
 MONAD_NAMESPACE_END
