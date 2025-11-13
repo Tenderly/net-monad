@@ -33,6 +33,7 @@
 #include <category/vm/code.hpp>
 #include <category/vm/evm/explicit_traits.hpp>
 #include <category/vm/evm/traits.hpp>
+#include <category/vm/utils/evmc_utils.hpp>
 #include <category/vm/vm.hpp>
 
 #include <evmc/evmc.h>
@@ -49,6 +50,7 @@
 #include <optional>
 #include <utility>
 #include <vector>
+#include <iostream>
 
 MONAD_NAMESPACE_BEGIN
 
@@ -352,7 +354,9 @@ void State::subtract_from_balance(
         account = Account{.incarnation = incarnation_};
     }
 
-    MONAD_ASSERT_THROW(delta <= account.value().balance, "balance underflow");
+    if (delta > account.value().balance) {
+        throw std::runtime_error("Bad balance: " + intx::to_string(account.value().balance) + " delta: " + intx::to_string(delta) + " Address: " + vm::utils::hex_string(address));
+    }
 
     account.value().balance -= delta;
     account_state.touch();
