@@ -52,7 +52,7 @@ inline void trace(
 
     auto const pc_current = static_cast<std::size_t>(instr_ptr - analysis.code());
     auto const opcode = *instr_ptr;
-    auto const stack_size = static_cast<std::size_t>(stack_top - stack_bottom + 1);
+    auto const stack_size = static_cast<std::size_t>(stack_top - stack_bottom);
 
     // Get opcode info from the table
     auto const& opcode_info = compiler::opcode_table<traits>[opcode];
