@@ -42,8 +42,8 @@ inline void trace(
     Intercode const &analysis,
     std::int64_t gas_remaining_before,
     std::uint8_t const *instr_ptr,
-    runtime::uint256_t const *stack_bottom,
-    runtime::uint256_t const *stack_top)
+    uint256_t const *stack_bottom,
+    uint256_t const *stack_top)
 {
     if (ctx.opcode_tracer == nullptr) {
         return;
