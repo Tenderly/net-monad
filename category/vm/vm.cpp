@@ -146,7 +146,7 @@ namespace monad::vm
         auto const &icode = vcode->intercode();
 
         /* We can only trace opcodes if we are using the interpreter */
-        if (MONAD_VM_UNLIKELY(rt_ctx.opcode_tracer != nullptr)) {
+        if (MONAD_UNLIKELY(rt_ctx.opcode_tracer != nullptr)) {
             return execute_bytecode_raw<traits>(rt_ctx, icode->code_span());
         }
 
