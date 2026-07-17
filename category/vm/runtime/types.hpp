@@ -231,10 +231,10 @@ namespace monad::vm::runtime
         evmc::address from_address;
         evmc::address to_address;
 
-        runtime::uint256_t const* stack_top;
+        uint256_t const* stack_top;
         std::size_t stack_size;
 
-        runtime::Memory const* memory;
+        Memory const* memory;
 
         std::uint8_t const* input_data;
         std::size_t input_data_size;
