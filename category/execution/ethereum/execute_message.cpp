@@ -65,6 +65,18 @@ namespace
         host.emit_native_transfer_event(msg.sender, to, value);
     }
 
+    Address
+    create_message_address(evmc_message const &msg, uint64_t const nonce)
+    {
+        if (msg.kind == EVMC_CREATE) {
+            return create_contract_address(msg.sender, nonce); // YP Eqn. 85
+        }
+        // msg.kind == EVMC_CREATE2
+        auto const code_hash = keccak256({msg.input_data, msg.input_size});
+        return create2_contract_address(
+            msg.sender, msg.create2_salt, code_hash);
+    }
+
 } // anonymous namespace
 
 template <Traits traits>
@@ -181,8 +193,15 @@ evmc::Result execute_create_message(
 
     MONAD_ASSERT(msg.kind == EVMC_CREATE || msg.kind == EVMC_CREATE2);
 
+    // The tracer gets the new contract address in recipient, as go-ethereum
+    // tracers do. The sender nonce is read before this message increments it,
+    // so the address is the same one computed below.
+    evmc_message traced_msg = msg;
+    traced_msg.recipient =
+        create_message_address(msg, state.get_nonce(msg.sender));
+
     auto &call_tracer = host->get_call_tracer();
-    call_tracer.on_enter(msg);
+    call_tracer.on_enter(traced_msg);
 
     if (MONAD_UNLIKELY(!sender_has_balance(state, msg))) {
         if constexpr (is_monad_trait_v<traits>) {
@@ -217,16 +236,7 @@ evmc::Result execute_create_message(
     }
     state.set_nonce(msg.sender, nonce + 1);
 
-    Address const contract_address = [&] {
-        if (msg.kind == EVMC_CREATE) {
-            return create_contract_address(msg.sender, nonce); // YP Eqn. 85
-        }
-        else { // msg.kind == EVMC_CREATE2
-            auto const code_hash = keccak256({msg.input_data, msg.input_size});
-            return create2_contract_address(
-                msg.sender, msg.create2_salt, code_hash);
-        }
-    }();
+    Address const contract_address = create_message_address(msg, nonce);
 
     state.access_account(contract_address);
 

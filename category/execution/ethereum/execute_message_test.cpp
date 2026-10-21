@@ -55,6 +55,7 @@
 #include <cstring>
 #include <limits>
 #include <optional>
+#include <span>
 #include <string>
 #include <utility>
 #include <vector>
@@ -82,6 +83,128 @@ namespace
                 host.state_tracer_,
                 host.chain_ctx_);
         }
+    }
+}
+
+namespace
+{
+    struct EnterRecipientTracer final : public CallTracerBase
+    {
+        std::vector<Address> recipients;
+
+        void on_enter(evmc_message const &msg) override
+        {
+            recipients.emplace_back(msg.recipient);
+        }
+
+        void on_exit(evmc::Result const &) override {}
+
+        void on_log(Receipt::Log) override {}
+
+        void on_self_destruct(
+            Address const &, Address const &, uint256_t const &) override
+        {
+        }
+
+        void on_finish(uint64_t const) override {}
+
+        void reset() override {}
+
+        std::span<CallFrame const> get_call_frames() const override
+        {
+            return {};
+        }
+    };
+}
+
+// The tracer receives the new contract address in recipient on enter, for
+// CREATE and CREATE2, at the top level and in nested frames.
+TYPED_TEST(TraitsTest, create_on_enter_recipient_is_created_address)
+{
+    static constexpr auto from =
+        0x5353535353535353535353535353535353535353_address;
+    static constexpr uint64_t nonce = 7;
+    static constexpr auto salt =
+        0x00000000000000000000000000000000000000000000000000000000000000aa_bytes32;
+
+    // PUSH1 0x00; PUSH1 0x00; RETURN: deploys empty code.
+    using monad::literals::operator""_bytes;
+    auto const initcode = 0x60006000f3_bytes;
+    auto const code_hash = keccak256({initcode.data(), initcode.size()});
+
+    struct Case
+    {
+        evmc_call_kind kind;
+        int32_t depth;
+        Address want;
+    };
+
+    std::vector<Case> const cases{
+        {EVMC_CREATE, 0, create_contract_address(from, nonce)},
+        {EVMC_CREATE, 1, create_contract_address(from, nonce)},
+        {EVMC_CREATE2, 0, create2_contract_address(from, salt, code_hash)},
+        {EVMC_CREATE2, 1, create2_contract_address(from, salt, code_hash)},
+    };
+
+    for (auto const &c : cases) {
+        mpt::Db db{std::make_unique<InMemoryMachine>()};
+        db_t tdb{db};
+        vm::VM vm;
+        BlockState bs{tdb, vm};
+        State s{bs, Incarnation{0, 0}};
+
+        commit_sequential(
+            tdb,
+            StateDeltas(
+                {{from,
+                  StateDelta{
+                      .account =
+                          {std::nullopt,
+                           Account{
+                               .balance = 10'000'000'000, .nonce = nonce}}}}}),
+            Code{},
+            BlockHeader{});
+
+        BlockHashBufferFinalized const block_hash_buffer;
+        EnterRecipientTracer call_tracer;
+        Transaction tx{};
+        auto const chain_ctx =
+            ChainContext<typename TestFixture::Trait>::debug_empty();
+        uint256_t base_fee{0};
+        trace::StateTracer noop_state_tracer = std::monostate{};
+        EvmcHost<typename TestFixture::Trait> h{
+            call_tracer,
+            noop_state_tracer,
+            EMPTY_TX_CONTEXT,
+            block_hash_buffer,
+            s,
+            tx,
+            base_fee,
+            0,
+            chain_ctx};
+        init_rb_for_test<typename TestFixture::Trait>(s, h, from);
+
+        auto msg_memory = vm.message_memory_ref();
+        evmc_message m{
+            .kind = c.kind,
+            .depth = c.depth,
+            .gas = 1'000'000,
+            .sender = from,
+            .input_data = initcode.data(),
+            .input_size = initcode.size(),
+            .create2_salt = salt,
+            .memory_handle = msg_memory.get(),
+            .memory = msg_memory.get(),
+            .memory_capacity = vm.message_memory_capacity(),
+        };
+
+        auto const result =
+            execute_create_message<typename TestFixture::Trait>(&h, s, m);
+
+        ASSERT_EQ(result.status_code, EVMC_SUCCESS);
+        ASSERT_EQ(call_tracer.recipients.size(), 1u);
+        EXPECT_EQ(call_tracer.recipients[0], c.want);
+        EXPECT_EQ(Address{result.create_address}, c.want);
     }
 }
 
